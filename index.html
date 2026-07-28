@@ -1,480 +1,242 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-<meta name="theme-color" content="#1B2B22" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matric Study Planner</title>
-<link rel="manifest" href="./manifest.json" />
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
+
+<link rel="manifest" href="manifest.json">
+
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Sora:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap');
-  html,body{margin:0;padding:0;}
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+background:#0f172a;
+color:white;
+}
+
+header{
+background:#1e293b;
+padding:20px;
+text-align:center;
+box-shadow:0 2px 10px rgba(0,0,0,.4);
+}
+
+.container{
+width:95%;
+max-width:1200px;
+margin:auto;
+padding:20px;
+}
+
+.card{
+background:#1e293b;
+border-radius:15px;
+padding:20px;
+margin-bottom:20px;
+box-shadow:0 5px 15px rgba(0,0,0,.4);
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+gap:20px;
+}
+
+button{
+background:#2563eb;
+color:white;
+border:none;
+padding:10px 20px;
+border-radius:10px;
+cursor:pointer;
+}
+
+button:hover{
+background:#1d4ed8;
+}
+
+input{
+width:100%;
+padding:10px;
+margin-top:10px;
+border-radius:10px;
+border:none;
+background:#334155;
+color:white;
+}
+
+.progress{
+height:15px;
+background:#334155;
+border-radius:10px;
+overflow:hidden;
+margin-top:10px;
+}
+
+.progress-bar{
+height:100%;
+width:0%;
+background:#22c55e;
+transition:.4s;
+}
 </style>
 </head>
+
 <body>
-<div id="root"></div>
-<script type="text/babel" data-presets="react">
 
-const { useState, useEffect, useRef } = React;
+<header>
+<h1>📚 Matric Study Planner</h1>
+<p>Your complete offline study planner</p>
+</header>
 
-// ---- storage shim (localStorage instead of the artifact's window.storage) ----
-const storage = {
-  get: async (key) => {
-    const v = localStorage.getItem(key);
-    return v === null ? null : { key, value: v };
-  },
-  set: async (key, value) => {
-    localStorage.setItem(key, value);
-    return { key, value };
-  },
-};
+<div class="container">
 
-// ---- tiny inline icon set (no external icon library needed) ----
-function Icon({ children, size = 16, color = "currentColor" }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {children}
-    </svg>
-  );
+<div class="grid">
+
+<div class="card">
+<h2>Exam Countdown</h2>
+<h1 id="countdown">Loading...</h1>
+</div>
+
+<div class="card">
+<h2>Overall Progress</h2>
+
+<div class="progress">
+<div class="progress-bar" id="progressBar"></div>
+</div>
+
+<h3 id="progressText">0%</h3>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>Add Subject</h2>
+
+<input
+id="subjectInput"
+placeholder="Enter subject">
+
+<button onclick="addSubject()">
+Add Subject
+</button>
+
+</div>
+
+<div
+id="subjects">
+</div>
+
+</div>
+
+<script>
+
+let subjects=
+JSON.parse(
+localStorage.getItem("subjects")
+)||[];
+
+const examDate=
+new Date("2026-10-19");
+
+function updateCountdown(){
+
+let now=
+new Date();
+
+let diff=
+examDate-now;
+
+let days=
+Math.ceil(
+diff/86400000
+);
+
+document.getElementById(
+"countdown"
+).innerHTML=
+days+" Days";
+
 }
-const Check = (p) => <Icon {...p}><path d="M20 6L9 17l-5-5" /></Icon>;
-const Plus = (p) => <Icon {...p}><path d="M12 5v14M5 12h14" /></Icon>;
-const XIcon = (p) => <Icon {...p}><path d="M18 6L6 18M6 6l12 12" /></Icon>;
-const Trash2 = (p) => <Icon {...p}><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z" /></Icon>;
-const GraduationCap = (p) => <Icon {...p}><path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5" /></Icon>;
-const CalendarDays = (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></Icon>;
-const Flag = (p) => <Icon {...p}><path d="M4 22V2" /><path d="M4 4h12l-2 4 2 4H4" /></Icon>;
-const StickyNote = (p) => <Icon {...p}><path d="M4 4h16v12l-5 5H4z" /><path d="M15 16v5l5-5h-5z" /></Icon>;
-const PlayIcon = (p) => <Icon {...p}><path d="M6 4l14 8-14 8z" /></Icon>;
-const PauseIcon = (p) => <Icon {...p}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></Icon>;
-const RotateCcw = (p) => <Icon {...p}><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v6h6" /></Icon>;
-const BarChart3 = (p) => <Icon {...p}><path d="M3 21h18" /><rect x="6" y="10" width="3" height="8" /><rect x="11" y="6" width="3" height="12" /><rect x="16" y="13" width="3" height="5" /></Icon>;
-const Palette = (p) => <Icon {...p}><path d="M12 2a10 10 0 1 0 0 20c1 0 2-1 2-2s-1-1-1-2 1-2 2-2h2a4 4 0 0 0 4-4c0-5.5-4.5-10-9-10z" /><circle cx="7.5" cy="10.5" r="1" /><circle cx="12" cy="7.5" r="1" /><circle cx="16.5" cy="10.5" r="1" /></Icon>;
 
-const STORAGE_KEY = "matric-planner-data-v3";
-const BODY_FONT = "'Inter', sans-serif";
-const MONO_FONT = "'Space Mono', monospace";
-const SUBJECT_SWATCHES = ["#E8C547", "#7FB2C9", "#D65F5F", "#8FBF7F", "#C9A0DC", "#E8944A"];
-const PRIORITY_ORDER = ["low", "medium", "high"];
-const PRIORITY_LABEL = { low: "Low priority", medium: "Medium priority", high: "High priority" };
+setInterval(
+updateCountdown,
+1000
+);
 
-const THEMES = {
-  chalkboard: { label: "Chalkboard", bg: "radial-gradient(ellipse at top, #223829 0%, #1B2B22 55%, #16221b 100%)", text: "#F3F1E7", muted: "#B9C4B9", faint: "#8a9a8f", line: "#56695c", trackBg: "#16221b", cardBg: "rgba(255,255,255,0.015)", accent: "#E8C547", accent2: "#7FB2C9", danger: "#D65F5F", success: "#8FBF7F", borderStyle: "dashed", radius: 10, displayFont: "'Kalam', cursive", swatch: ["#1B2B22", "#E8C547", "#7FB2C9"] },
-  sunset: { label: "Sunset Study", bg: "radial-gradient(ellipse at top, #3a2036 0%, #2B1B2E 55%, #1c1218 100%)", text: "#F5E9E2", muted: "#CBA9AE", faint: "#8f7278", line: "#5c3f49", trackBg: "#1c1218", cardBg: "rgba(255,255,255,0.02)", accent: "#F2967D", accent2: "#E8B04B", danger: "#E85D5D", success: "#9CB380", borderStyle: "solid", radius: 16, displayFont: "'Fraunces', serif", swatch: ["#2B1B2E", "#F2967D", "#E8B04B"] },
-  ocean: { label: "Ocean Calm", bg: "radial-gradient(ellipse at top, #123047 0%, #0F2438 55%, #0A1826 100%)", text: "#E7F3F3", muted: "#9FC2C2", faint: "#5f8385", line: "#2c5361", trackBg: "#0A1826", cardBg: "rgba(255,255,255,0.02)", accent: "#4FD1C5", accent2: "#8B9EFF", danger: "#F27878", success: "#7FD9A0", borderStyle: "solid", radius: 14, displayFont: "'Sora', sans-serif", swatch: ["#0F2438", "#4FD1C5", "#8B9EFF"] },
-  midnight: { label: "Midnight Violet", bg: "radial-gradient(ellipse at top, #241a33 0%, #181022 55%, #120b1a 100%)", text: "#F1E9F7", muted: "#B9A6CB", faint: "#7a6a8a", line: "#4a3760", trackBg: "#120b1a", cardBg: "rgba(255,255,255,0.02)", accent: "#C77DFF", accent2: "#FFD670", danger: "#F2678A", success: "#7FE0B4", borderStyle: "dashed", radius: 12, displayFont: "'Space Grotesk', sans-serif", swatch: ["#181022", "#C77DFF", "#FFD670"] },
-};
-const THEME_IDS = Object.keys(THEMES);
+updateCountdown();
 
-const DAYS = [
-  { key: "Mon", label: "Monday" }, { key: "Tue", label: "Tuesday" }, { key: "Wed", label: "Wednesday" },
-  { key: "Thu", label: "Thursday" }, { key: "Fri", label: "Friday" }, { key: "Sat", label: "Saturday" }, { key: "Sun", label: "Sunday" },
-];
-const JS_DAY_TO_KEY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function save(){
 
-const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const bd = (theme, color, weight = 2) => `${weight}px ${theme.borderStyle} ${color}`;
+localStorage.setItem(
+"subjects",
+JSON.stringify(subjects)
+);
 
-const defaultData = () => ({
-  theme: "chalkboard",
-  examDate: "2026-10-19",
-  subjects: [
-    { id: genId(), name: "Mathematics", color: "#7FB2C9", notes: "", topics: [
-      { id: genId(), name: "Calculus", done: false, priority: "high" },
-      { id: genId(), name: "Trigonometry", done: false, priority: "medium" },
-      { id: genId(), name: "Functions", done: false, priority: "medium" },
-      { id: genId(), name: "Statistics & Probability", done: false, priority: "low" },
-      { id: genId(), name: "Sequences & Series", done: false, priority: "medium" },
-    ]},
-    { id: genId(), name: "Physical Sciences", color: "#E8C547", notes: "", topics: [
-      { id: genId(), name: "Mechanics", done: false, priority: "high" },
-      { id: genId(), name: "Waves, Sound & Light", done: false, priority: "medium" },
-      { id: genId(), name: "Electricity & Magnetism", done: false, priority: "high" },
-      { id: genId(), name: "Chemical Change", done: false, priority: "medium" },
-    ]},
-    { id: genId(), name: "Life Sciences", color: "#8FBF7F", notes: "", topics: [
-      { id: genId(), name: "DNA & Genetics", done: false, priority: "medium" },
-      { id: genId(), name: "Meiosis", done: false, priority: "low" },
-      { id: genId(), name: "Human Reproduction", done: false, priority: "medium" },
-      { id: genId(), name: "Evolution", done: false, priority: "low" },
-    ]},
-    { id: genId(), name: "English Home Language", color: "#D65F5F", notes: "", topics: [
-      { id: genId(), name: "Poetry Analysis", done: false, priority: "medium" },
-      { id: genId(), name: "Prescribed Novel", done: false, priority: "high" },
-      { id: genId(), name: "Language Structures", done: false, priority: "low" },
-      { id: genId(), name: "Essay Writing", done: false, priority: "medium" },
-    ]},
-  ],
-  schedule: [],
+}
+
+function addSubject(){
+
+let input=
+document.getElementById(
+"subjectInput"
+);
+
+if(input.value=="")
+return;
+
+subjects.push({
+
+name:input.value,
+
+topics:[]
+
 });
 
-function withDefaults(raw) {
-  const base = defaultData();
-  if (!raw || typeof raw !== "object") return base;
-  return {
-    theme: THEME_IDS.includes(raw.theme) ? raw.theme : base.theme,
-    examDate: raw.examDate || base.examDate,
-    subjects: Array.isArray(raw.subjects) ? raw.subjects.map((s) => ({
-      id: s.id || genId(), name: s.name || "Untitled subject", color: s.color || SUBJECT_SWATCHES[0],
-      notes: typeof s.notes === "string" ? s.notes : "",
-      topics: Array.isArray(s.topics) ? s.topics.map((t) => ({
-        id: t.id || genId(), name: t.name || "Untitled topic", done: !!t.done,
-        priority: PRIORITY_ORDER.includes(t.priority) ? t.priority : "medium",
-      })) : [],
-    })) : base.subjects,
-    schedule: Array.isArray(raw.schedule) ? raw.schedule : [],
-  };
+input.value="";
+
+save();
+
+render();
+
 }
 
-function daysUntil(dateStr) {
-  if (!dateStr) return null;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr + "T00:00:00");
-  return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+function render(){
+
+let html="";
+
+subjects.forEach((s,i)=>{
+
+html+=`
+<div class="card">
+<h2>${s.name}</h2>
+
+<button onclick="addTopic(${i})">
+Add Topic
+</button>
+
+<div id="topic${i}">
+</div>
+
+</div>
+`;
+
+});
+
+document.getElementById(
+"subjects"
+).innerHTML=html;
+
 }
 
-function ChalkCheckbox({ checked, onClick, color, theme }) {
-  return (
-    <button onClick={onClick} aria-pressed={checked} aria-label={checked ? "Mark topic not done" : "Mark topic done"}
-      style={{ width: 22, height: 22, flexShrink: 0, border: bd(theme, checked ? color : theme.faint), background: checked ? color : "transparent", borderRadius: Math.min(theme.radius, 6), boxShadow: checked ? `0 0 8px ${color}55` : "none" }}
-      className="flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2">
-      {checked && <Check size={14} color="#1B2B22" />}
-    </button>
-  );
-}
+render();
 
-function PomodoroTimer({ theme }) {
-  const PRESETS = [25, 45, 5];
-  const [minutes, setMinutes] = useState(25);
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
-  const [running, setRunning] = useState(false);
-  const intervalRef = useRef(null);
-
-  useEffect(() => {
-    if (running) {
-      intervalRef.current = setInterval(() => {
-        setSecondsLeft((s) => { if (s <= 1) { clearInterval(intervalRef.current); setRunning(false); return 0; } return s - 1; });
-      }, 1000);
-    }
-    return () => clearInterval(intervalRef.current);
-  }, [running]);
-
-  const pickPreset = (m) => { clearInterval(intervalRef.current); setRunning(false); setMinutes(m); setSecondsLeft(m * 60); };
-  const reset = () => { clearInterval(intervalRef.current); setRunning(false); setSecondsLeft(minutes * 60); };
-  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
-  const ss = String(secondsLeft % 60).padStart(2, "0");
-  const pct = Math.round(((minutes * 60 - secondsLeft) / (minutes * 60)) * 100);
-
-  return (
-    <div style={{ border: bd(theme, theme.line), borderRadius: theme.radius }} className="px-5 py-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span style={{ fontFamily: theme.displayFont }} className="text-lg">Focus timer</span>
-        <div className="flex gap-1.5">
-          {PRESETS.map((m) => (
-            <button key={m} onClick={() => pickPreset(m)} aria-pressed={minutes === m}
-              style={{ border: bd(theme, minutes === m ? theme.accent : theme.line, 1.5), color: minutes === m ? theme.accent : theme.muted, borderRadius: Math.min(theme.radius, 8) }}
-              className="text-xs px-2 py-1">{m}m</button>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <span style={{ fontFamily: MONO_FONT, color: theme.accent }} className="text-4xl tabular-nums">{mm}:{ss}</span>
-        <div className="flex-1" style={{ background: theme.trackBg, borderRadius: 4, height: 8 }}>
-          <div style={{ width: `${pct}%`, background: theme.accent, height: "100%", borderRadius: 4, transition: "width 1s linear" }} />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <button onClick={() => setRunning((r) => !r)} style={{ border: bd(theme, theme.accent), color: theme.accent, borderRadius: Math.min(theme.radius, 8) }} className="flex items-center gap-1 px-3 py-1.5 text-sm">
-          {running ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
-          {running ? "Pause" : secondsLeft === minutes * 60 ? "Start" : "Resume"}
-        </button>
-        <button onClick={reset} style={{ border: bd(theme, theme.line), color: theme.muted, borderRadius: Math.min(theme.radius, 8) }} className="flex items-center gap-1 px-3 py-1.5 text-sm">
-          <RotateCcw size={14} /> Reset
-        </button>
-      </div>
-      {secondsLeft === 0 && <p style={{ color: theme.success }} className="text-sm">Block done — stretch, hydrate, then start the next one.</p>}
-    </div>
-  );
-}
-
-function StudyPlanner() {
-  const [data, setData] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(null);
-  const [newSubjectName, setNewSubjectName] = useState("");
-  const [newSubjectColor, setNewSubjectColor] = useState(SUBJECT_SWATCHES[0]);
-  const [newTopicText, setNewTopicText] = useState({});
-  const [openNotes, setOpenNotes] = useState({});
-  const [schedForm, setSchedForm] = useState({ day: "Mon", time: "", subjectId: "", activity: "" });
-  const initialLoad = useRef(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const result = await storage.get(STORAGE_KEY);
-        setData(result && result.value ? withDefaults(JSON.parse(result.value)) : defaultData());
-      } catch (e) { setData(defaultData()); } finally { setLoaded(true); }
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!loaded || !data) return;
-    if (initialLoad.current) { initialLoad.current = false; return; }
-    (async () => {
-      try { const r = await storage.set(STORAGE_KEY, JSON.stringify(data)); setError(r ? null : "Your changes couldn't be saved just now."); }
-      catch (e) { setError("Your changes couldn't be saved just now."); }
-    })();
-  }, [data, loaded]);
-
-  if (!loaded || !data) {
-    return <div style={{ background: "#1B2B22", color: "#F3F1E7", fontFamily: "'Kalam', cursive" }} className="min-h-screen flex items-center justify-center text-2xl">Setting up your planner…</div>;
-  }
-
-  const theme = THEMES[data.theme] || THEMES.chalkboard;
-  const daysLeft = daysUntil(data.examDate);
-  const urgencyColor = daysLeft === null ? theme.accent2 : daysLeft <= 30 ? theme.danger : daysLeft <= 60 ? theme.accent : theme.accent2;
-  const totalTopics = data.subjects.reduce((s, sub) => s + sub.topics.length, 0);
-  const totalDone = data.subjects.reduce((s, sub) => s + sub.topics.filter((t) => t.done).length, 0);
-  const overallPct = totalTopics === 0 ? 0 : Math.round((totalDone / totalTopics) * 100);
-  const todayKey = JS_DAY_TO_KEY[new Date().getDay()];
-  const todaysEntries = data.schedule.filter((e) => e.day === todayKey).sort((a, b) => a.time.localeCompare(b.time));
-  const highPriorityOpen = data.subjects.flatMap((s) => s.topics.filter((t) => !t.done && t.priority === "high").map((t) => ({ ...t, subjectName: s.name, color: s.color })));
-  const chartData = data.subjects.map((s) => { const total = s.topics.length; const done = s.topics.filter((t) => t.done).length; return { name: s.name, pct: total === 0 ? 0 : Math.round((done / total) * 100), color: s.color }; });
-
-  const setTheme = (id) => setData({ ...data, theme: id });
-  const addSubject = () => { const name = newSubjectName.trim(); if (!name) return; setData({ ...data, subjects: [...data.subjects, { id: genId(), name, color: newSubjectColor, notes: "", topics: [] }] }); setNewSubjectName(""); };
-  const deleteSubject = (id) => setData({ ...data, subjects: data.subjects.filter((s) => s.id !== id) });
-  const renameSubject = (id, name) => setData({ ...data, subjects: data.subjects.map((s) => (s.id === id ? { ...s, name } : s)) });
-  const setSubjectNotes = (id, notes) => setData({ ...data, subjects: data.subjects.map((s) => (s.id === id ? { ...s, notes } : s)) });
-  const addTopic = (subjectId) => { const text = (newTopicText[subjectId] || "").trim(); if (!text) return; setData({ ...data, subjects: data.subjects.map((s) => s.id === subjectId ? { ...s, topics: [...s.topics, { id: genId(), name: text, done: false, priority: "medium" }] } : s) }); setNewTopicText({ ...newTopicText, [subjectId]: "" }); };
-  const toggleTopic = (subjectId, topicId) => setData({ ...data, subjects: data.subjects.map((s) => s.id === subjectId ? { ...s, topics: s.topics.map((t) => t.id === topicId ? { ...t, done: !t.done } : t) } : s) });
-  const cyclePriority = (subjectId, topicId) => setData({ ...data, subjects: data.subjects.map((s) => s.id === subjectId ? { ...s, topics: s.topics.map((t) => t.id === topicId ? { ...t, priority: PRIORITY_ORDER[(PRIORITY_ORDER.indexOf(t.priority) + 1) % PRIORITY_ORDER.length] } : t) } : s) });
-  const deleteTopic = (subjectId, topicId) => setData({ ...data, subjects: data.subjects.map((s) => s.id === subjectId ? { ...s, topics: s.topics.filter((t) => t.id !== topicId) } : s) });
-  const addScheduleEntry = () => { if (!schedForm.time.trim() || !schedForm.subjectId || !schedForm.activity.trim()) return; setData({ ...data, schedule: [...data.schedule, { id: genId(), ...schedForm }] }); setSchedForm({ ...schedForm, time: "", activity: "" }); };
-  const deleteScheduleEntry = (id) => setData({ ...data, schedule: data.schedule.filter((e) => e.id !== id) });
-  const priorityColor = (p) => (p === "high" ? theme.danger : p === "medium" ? theme.accent : theme.success);
-
-  return (
-    <div style={{ background: theme.bg, color: theme.text, fontFamily: BODY_FONT, minHeight: "100vh", position: "relative", overflow: "hidden" }} className="pb-16">
-      <style>{`
-        @media (prefers-reduced-motion: no-preference) {
-          .lift { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-          .lift:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
-          .urgent-pulse { animation: pulseglow 2.4s ease-in-out infinite; }
-          @keyframes pulseglow { 0%,100% { box-shadow: 0 0 0px rgba(214,95,95,0); } 50% { box-shadow: 0 0 18px ${urgencyColor}59; } }
-        }
-        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.85); cursor: pointer; }
-        .ui-input, .ui-select, .ui-textarea { background: transparent; border: ${bd(theme, theme.line)}; border-radius: ${Math.min(theme.radius, 8)}px; color: ${theme.text}; }
-        .ui-select option { background: ${theme.trackBg}; color: ${theme.text}; }
-        .ui-input::placeholder, .ui-textarea::placeholder { color: ${theme.faint}; }
-        *:focus-visible { outline: 2px solid ${theme.accent}; outline-offset: 2px; }
-        .subject-name-input { background: transparent; border: none; color: inherit; font-family: ${theme.displayFont}; font-size: 1.25rem; width: 100%; }
-        .subject-name-input:focus { outline: none; border-bottom: 1px dashed ${theme.accent}88; }
-        .theme-swatch { transition: transform 0.15s ease; }
-        .theme-swatch:hover { transform: scale(1.05); }
-      `}</style>
-
-      <div style={{ position: "absolute", top: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: `radial-gradient(circle, ${theme.accent}18 0%, transparent 70%)`, pointerEvents: "none" }} />
-      <div style={{ position: "absolute", top: 400, left: -100, width: 280, height: 280, borderRadius: "50%", background: `radial-gradient(circle, ${theme.accent2}16 0%, transparent 70%)`, pointerEvents: "none" }} />
-
-      <header className="max-w-5xl mx-auto px-6 pt-10 pb-6 relative">
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-1">
-          <div className="flex items-center gap-3">
-            <GraduationCap size={28} color={theme.accent} />
-            <h1 style={{ fontFamily: theme.displayFont }} className="text-4xl">Matric Study Planner</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Palette size={15} color={theme.muted} />
-            <div className="flex gap-1.5">
-              {THEME_IDS.map((id) => {
-                const t = THEMES[id]; const active = data.theme === id;
-                return (
-                  <button key={id} onClick={() => setTheme(id)} aria-pressed={active} aria-label={`Switch to ${t.label} theme`} title={t.label}
-                    className="theme-swatch flex overflow-hidden" style={{ borderRadius: 6, border: active ? `2px solid ${t.accent}` : "2px solid transparent", width: 30, height: 20 }}>
-                    {t.swatch.map((c, i) => <span key={i} style={{ background: c, flex: 1 }} />)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        <p style={{ color: theme.muted }} className="text-sm ml-10">Track your topics, plan your week, keep an eye on the calendar.</p>
-
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 items-stretch">
-          <div style={{ border: bd(theme, urgencyColor), borderRadius: theme.radius, minWidth: 220 }} className={`flex flex-col items-center justify-center px-6 py-4 ${daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 ? "urgent-pulse" : ""}`}>
-            <span style={{ fontFamily: MONO_FONT, color: urgencyColor }} className="text-5xl font-bold">{daysLeft === null ? "—" : daysLeft < 0 ? "0" : daysLeft}</span>
-            <span style={{ fontFamily: theme.displayFont }} className="text-sm mt-1 text-center">{daysLeft !== null && daysLeft < 0 ? "finals underway — good luck!" : "days to matric finals"}</span>
-            <label className="mt-3 flex items-center gap-2 text-xs" style={{ color: theme.muted }}>
-              exam date
-              <input type="date" value={data.examDate} onChange={(e) => setData({ ...data, examDate: e.target.value })} className="ui-input px-2 py-1 text-xs" />
-            </label>
-          </div>
-
-          <div style={{ border: bd(theme, theme.line), borderRadius: theme.radius }} className="flex-1 px-6 py-4 flex flex-col justify-center">
-            <div className="flex items-baseline justify-between mb-2">
-              <span style={{ fontFamily: theme.displayFont }} className="text-lg">Overall progress</span>
-              <span style={{ fontFamily: MONO_FONT, color: theme.accent }} className="text-xl">{overallPct}%</span>
-            </div>
-            <div style={{ background: theme.trackBg, borderRadius: 4, height: 10 }}>
-              <div style={{ width: `${overallPct}%`, background: theme.accent, height: "100%", borderRadius: 4, transition: "width 0.3s ease" }} />
-            </div>
-            <span className="text-xs mt-2" style={{ color: theme.muted }}>{totalDone} of {totalTopics} topics covered across {data.subjects.length} {data.subjects.length === 1 ? "subject" : "subjects"}</span>
-          </div>
-
-          <div style={{ border: bd(theme, theme.line), borderRadius: theme.radius, minWidth: 200 }} className="px-5 py-4">
-            <span style={{ fontFamily: theme.displayFont }} className="text-lg">Today's focus</span>
-            {todaysEntries.length === 0 ? <p style={{ color: theme.faint }} className="text-xs mt-2">Nothing scheduled today — add a block below.</p> : (
-              <ul className="mt-2 flex flex-col gap-1.5">
-                {todaysEntries.slice(0, 3).map((e) => { const subj = data.subjects.find((s) => s.id === e.subjectId); return (
-                  <li key={e.id} className="text-xs"><span style={{ fontFamily: MONO_FONT, color: theme.accent }}>{e.time}</span> <span style={{ color: subj ? subj.color : theme.text }}>{subj ? subj.name : ""}</span></li>
-                ); })}
-              </ul>
-            )}
-          </div>
-        </div>
-        {error && <p className="text-xs mt-3" style={{ color: theme.danger }}>{error}</p>}
-      </header>
-
-      <main className="max-w-5xl mx-auto px-6 relative">
-        <div className="grid sm:grid-cols-2 gap-5 mb-10">
-          <div style={{ border: bd(theme, theme.line), borderRadius: theme.radius }} className="px-5 py-4">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 size={18} color={theme.accent2} />
-              <span style={{ fontFamily: theme.displayFont }} className="text-lg">Progress by subject</span>
-            </div>
-            {chartData.length === 0 ? <p style={{ color: theme.faint }} className="text-xs">Add a subject to see your progress here.</p> : (
-              <div className="flex flex-col gap-2.5">
-                {chartData.map((c) => (
-                  <div key={c.name} className="flex items-center gap-2">
-                    <span className="text-xs w-28 truncate" style={{ color: theme.muted }}>{c.name}</span>
-                    <div style={{ background: theme.trackBg, borderRadius: 4, height: 10, flex: 1 }}>
-                      <div style={{ width: `${c.pct}%`, background: c.color, height: "100%", borderRadius: 4, transition: "width 0.3s ease" }} />
-                    </div>
-                    <span style={{ fontFamily: MONO_FONT, fontSize: 11, color: theme.muted, width: 32 }} className="text-right">{c.pct}%</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <PomodoroTimer theme={theme} />
-        </div>
-
-        {highPriorityOpen.length > 0 && (
-          <div style={{ border: bd(theme, theme.danger + "66"), borderRadius: theme.radius }} className="px-5 py-4 mb-10">
-            <div className="flex items-center gap-2 mb-2"><Flag size={16} color={theme.danger} /><span style={{ fontFamily: theme.displayFont }} className="text-lg">High priority, still open</span></div>
-            <ul className="flex flex-wrap gap-2">
-              {highPriorityOpen.map((t) => <li key={t.id} style={{ border: bd(theme, t.color, 1.5), color: t.color, borderRadius: Math.min(theme.radius, 8) }} className="text-xs px-2 py-1">{t.name} <span style={{ color: theme.faint }}>· {t.subjectName}</span></li>)}
-            </ul>
-          </div>
-        )}
-
-        <h2 style={{ fontFamily: theme.displayFont }} className="text-2xl mb-4">Subjects & topics</h2>
-        {data.subjects.length === 0 && <p style={{ color: theme.muted }} className="mb-6 text-sm">No subjects yet — add one below to start tracking your prep.</p>}
-
-        <div className="grid sm:grid-cols-2 gap-5 mb-6">
-          {data.subjects.map((subject) => {
-            const total = subject.topics.length; const done = subject.topics.filter((t) => t.done).length; const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-            const notesOpen = !!openNotes[subject.id];
-            return (
-              <div key={subject.id} className="lift px-5 py-4" style={{ border: bd(theme, subject.color + "66"), borderRadius: theme.radius, background: theme.cardBg }}>
-                <div className="flex items-center justify-between mb-1 gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span style={{ width: 12, height: 12, background: subject.color, borderRadius: 3, flexShrink: 0 }} />
-                    <input value={subject.name} onChange={(e) => renameSubject(subject.id, e.target.value)} aria-label="Subject name" className="subject-name-input" />
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => setOpenNotes({ ...openNotes, [subject.id]: !notesOpen })} aria-label={`Toggle notes for ${subject.name}`} style={{ color: notesOpen ? subject.color : theme.faint }}><StickyNote size={16} /></button>
-                    <button onClick={() => deleteSubject(subject.id)} aria-label={`Remove ${subject.name}`} style={{ color: theme.faint }} className="hover:opacity-80"><Trash2 size={16} /></button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div style={{ background: theme.trackBg, borderRadius: 4, height: 6, flex: 1 }}><div style={{ width: `${pct}%`, background: subject.color, height: "100%", borderRadius: 4, transition: "width 0.3s ease" }} /></div>
-                  <span style={{ fontFamily: MONO_FONT, fontSize: 12, color: theme.muted }}>{pct}%</span>
-                </div>
-                {notesOpen && <textarea value={subject.notes} onChange={(e) => setSubjectNotes(subject.id, e.target.value)} placeholder="Formulas, exam tips, things to remember…" className="ui-textarea w-full text-xs px-3 py-2 mb-3" rows={3} />}
-                {total === 0 && <p style={{ color: theme.faint }} className="text-xs mb-2">No topics yet — add the first one below.</p>}
-                <ul className="flex flex-col gap-2 mb-3">
-                  {subject.topics.map((topic) => (
-                    <li key={topic.id} className="flex items-center gap-2 group">
-                      <ChalkCheckbox checked={topic.done} onClick={() => toggleTopic(subject.id, topic.id)} color={subject.color} theme={theme} />
-                      <button onClick={() => cyclePriority(subject.id, topic.id)} aria-label={`${PRIORITY_LABEL[topic.priority]} — click to change`} title={PRIORITY_LABEL[topic.priority]} className="flex-shrink-0"><Flag size={13} color={priorityColor(topic.priority)} /></button>
-                      <span className="text-sm flex-1" style={{ textDecoration: topic.done ? "line-through" : "none", color: topic.done ? theme.faint : theme.text }}>{topic.name}</span>
-                      <button onClick={() => deleteTopic(subject.id, topic.id)} aria-label={`Remove topic ${topic.name}`} style={{ color: theme.faint }} className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><XIcon size={14} /></button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex gap-2">
-                  <input value={newTopicText[subject.id] || ""} onChange={(e) => setNewTopicText({ ...newTopicText, [subject.id]: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addTopic(subject.id)} placeholder="Add a topic" className="ui-input flex-1 px-3 py-1.5 text-sm" />
-                  <button onClick={() => addTopic(subject.id)} aria-label={`Add topic to ${subject.name}`} style={{ border: bd(theme, subject.color), borderRadius: Math.min(theme.radius, 8) }} className="px-2"><Plus size={16} color={subject.color} /></button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{ border: bd(theme, theme.line), borderRadius: theme.radius }} className="px-5 py-4 mb-12 flex flex-wrap items-center gap-3">
-          <span style={{ fontFamily: theme.displayFont }} className="text-lg mr-1">New subject</span>
-          <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addSubject()} placeholder="e.g. Accounting" className="ui-input px-3 py-1.5 text-sm" />
-          <div className="flex gap-1.5">
-            {SUBJECT_SWATCHES.map((c) => <button key={c} onClick={() => setNewSubjectColor(c)} aria-label={`Choose color ${c}`} aria-pressed={newSubjectColor === c} style={{ width: 20, height: 20, borderRadius: 4, background: c, border: newSubjectColor === c ? `2px solid ${theme.text}` : "2px solid transparent" }} />)}
-          </div>
-          <button onClick={addSubject} style={{ border: bd(theme, theme.accent), color: theme.accent, borderRadius: Math.min(theme.radius, 8) }} className="px-3 py-1.5 text-sm flex items-center gap-1"><Plus size={15} /> Add subject</button>
-        </div>
-
-        <div className="flex items-center gap-2 mb-4"><CalendarDays size={22} color={theme.accent2} /><h2 style={{ fontFamily: theme.displayFont }} className="text-2xl">Weekly schedule</h2></div>
-
-        <div style={{ border: bd(theme, theme.line), borderRadius: theme.radius }} className="px-5 py-4 mb-5 flex flex-wrap items-center gap-2">
-          <select value={schedForm.day} onChange={(e) => setSchedForm({ ...schedForm, day: e.target.value })} className="ui-select px-2 py-1.5 text-sm">{DAYS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}</select>
-          <input value={schedForm.time} onChange={(e) => setSchedForm({ ...schedForm, time: e.target.value })} placeholder="16:00–17:00" className="ui-input px-3 py-1.5 text-sm" style={{ width: 120 }} />
-          <select value={schedForm.subjectId} onChange={(e) => setSchedForm({ ...schedForm, subjectId: e.target.value })} className="ui-select px-2 py-1.5 text-sm"><option value="">Subject…</option>{data.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-          <input value={schedForm.activity} onChange={(e) => setSchedForm({ ...schedForm, activity: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addScheduleEntry()} placeholder="e.g. Past paper practice" className="ui-input px-3 py-1.5 text-sm flex-1 min-w-[140px]" />
-          <button onClick={addScheduleEntry} style={{ border: bd(theme, theme.accent2), color: theme.accent2, borderRadius: Math.min(theme.radius, 8) }} className="px-3 py-1.5 text-sm flex items-center gap-1"><Plus size={15} /> Add block</button>
-        </div>
-
-        <div className="grid sm:grid-cols-4 md:grid-cols-7 gap-3">
-          {DAYS.map((d) => {
-            const entries = data.schedule.filter((e) => e.day === d.key).sort((a, b) => a.time.localeCompare(b.time));
-            const isToday = d.key === todayKey;
-            return (
-              <div key={d.key} style={{ border: bd(theme, isToday ? theme.accent : theme.line + "66"), borderRadius: theme.radius, background: isToday ? `${theme.accent}0D` : "transparent" }} className="px-3 py-3 min-h-[110px]">
-                <h4 style={{ fontFamily: theme.displayFont, color: isToday ? theme.accent : theme.muted }} className="text-sm mb-2">{d.key}{isToday ? " •" : ""}</h4>
-                {entries.length === 0 && <p style={{ color: theme.faint }} className="text-xs">Open</p>}
-                <ul className="flex flex-col gap-2">
-                  {entries.map((e) => { const subj = data.subjects.find((s) => s.id === e.subjectId); return (
-                    <li key={e.id} className="text-xs group">
-                      <div className="flex items-start justify-between gap-1">
-                        <div>
-                          <div style={{ fontFamily: MONO_FONT, color: theme.accent }}>{e.time}</div>
-                          <div style={{ color: subj ? subj.color : theme.text }}>{subj ? subj.name : "—"}</div>
-                          <div style={{ color: theme.muted }}>{e.activity}</div>
-                        </div>
-                        <button onClick={() => deleteScheduleEntry(e.id)} aria-label="Remove block" style={{ color: theme.faint }} className="opacity-0 group-hover:opacity-100 focus:opacity-100"><XIcon size={12} /></button>
-                      </div>
-                    </li>
-                  ); })}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<StudyPlanner />);
 </script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
-  }
-</script>
-</body>
-</html>
